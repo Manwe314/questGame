@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+>
+
+<title>Enter Code</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+    background: white;
+    color: black;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 24px;
+}
+
+.container {
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+}
+
+input {
+    display: block;
+
+    width: 100%;
+    height: 58px;
+
+    font-size: 28px;
+    text-align: center;
+
+    padding: 8px 12px;
+
+    border: 2px solid #999;
+    border-radius: 8px;
+
+    outline: none;
+}
+
+input:focus {
+    border-color: #333;
+}
+
+button {
+    display: block;
+
+    width: 100%;
+    height: 54px;
+
+    margin-top: 16px;
+
+    font-size: 18px;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: #222;
+    color: white;
+
+    cursor: pointer;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+#status {
+    margin-top: 20px;
+
+    font-size: 18px;
+    font-weight: 600;
+
+    min-height: 24px;
+}
+
+#message {
+    margin-top: 16px;
+
+    font-size: 18px;
+    line-height: 1.5;
+
+    color: black;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <input
+        id="answer"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        maxlength="6"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        aria-label="Answer"
+    >
+
+    <button id="checkButton"></button>
+
+    <div id="status"></div>
+
+    <div id="message"></div>
+
+</div>
+
+
+<script>
+
+const ANSWER_HASH =
+    "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+
+const SALT_HEX =
+    "087f631438a9048045e79fed07ae263e";
+
+const ENCRYPTED_MESSAGE_HEX =
+    "2c40e9e8720a66a557a654ae84d99e0a0de1a1b4205afca37344f5309263ce4063acdbd8b0de1b4f11843796d6436d06e55de8895ad0d714f6a53fcfbd1cc34e4ac77f1e871b4d";
+
+
+const BUTTON_TEXT = "\u10e8\u10d4\u10d0\u10db\u10dd\u10ec\u10db\u10d4 \u10de\u10d0\u10e1\u10e3\u10ee\u10d8";
+
+const WRONG_TEXT = "\u10d0\u10e0\u10d0\u10e1\u10ec\u10dd\u10e0\u10d8\u10d0, \u10d9\u10d8\u10d3\u10d4\u10d5 \u10e1\u10ea\u10d0\u10d3\u10d4\u10d7!";
+
+const CORRECT_TEXT = "\u10e1\u10ec\u10dd\u10e0\u10d8\u10d0!";
+
+
+const input =
+    document.getElementById("answer");
+
+const button =
+    document.getElementById("checkButton");
+
+const status =
+    document.getElementById("status");
+
+const message =
+    document.getElementById("message");
+
+
+button.textContent = BUTTON_TEXT;
+
+
+/*
+    Prevent anything except digits from remaining
+    in the field, and limit input to six digits.
+*/
+
+input.addEventListener("input", () => {
+
+    input.value = input.value
+        .replace(/[^0-9]/g, "")
+        .slice(0, 6);
+
+});
+
+
+/*
+    Allow the keyboard Enter / Go button to submit.
+*/
+
+input.addEventListener("keydown", event => {
+
+    if (event.key === "Enter") {
+        checkAnswer();
+    }
+
+});
+
+
+button.addEventListener(
+    "click",
+    checkAnswer
+);
+
+
+function hexToBytes(hex) {
+
+    const bytes =
+        new Uint8Array(hex.length / 2);
+
+    for (
+        let i = 0;
+        i < bytes.length;
+        i++
+    ) {
+        bytes[i] =
+            parseInt(
+                hex.substr(i * 2, 2),
+                16
+            );
+    }
+
+    return bytes;
+}
+
+
+function bytesToHex(bytes) {
+
+    return Array
+        .from(bytes)
+        .map(
+            byte =>
+                byte
+                    .toString(16)
+                    .padStart(2, "0")
+        )
+        .join("");
+}
+
+
+async function sha256Bytes(bytes) {
+
+    const hash =
+        await crypto.subtle.digest(
+            "SHA-256",
+            bytes
+        );
+
+    return new Uint8Array(hash);
+}
+
+
+async function sha256Text(text) {
+
+    const encoded =
+        new TextEncoder().encode(text);
+
+    const hash =
+        await sha256Bytes(encoded);
+
+    return bytesToHex(hash);
+}
+
+
+async function makeKeystream(
+    answer,
+    salt,
+    requiredLength
+) {
+
+    const encoder =
+        new TextEncoder();
+
+    const answerBytes =
+        encoder.encode(answer);
+
+    const result = [];
+
+    let counter = 0;
+
+
+    while (
+        result.length < requiredLength
+    ) {
+
+        const counterBytes =
+            new Uint8Array(4);
+
+        new DataView(
+            counterBytes.buffer
+        ).setUint32(
+            0,
+            counter,
+            false
+        );
+
+
+        const data =
+            new Uint8Array(
+                answerBytes.length
+                + salt.length
+                + counterBytes.length
+            );
+
+
+        data.set(
+            answerBytes,
+            0
+        );
+
+        data.set(
+            salt,
+            answerBytes.length
+        );
+
+        data.set(
+            counterBytes,
+            answerBytes.length
+            + salt.length
+        );
+
+
+        const block =
+            await sha256Bytes(data);
+
+
+        for (
+            const byte of block
+        ) {
+
+            if (
+                result.length
+                >= requiredLength
+            ) {
+                break;
+            }
+
+            result.push(byte);
+        }
+
+        counter++;
+    }
+
+
+    return new Uint8Array(result);
+}
+
+
+async function decryptMessage(answer) {
+
+    const salt =
+        hexToBytes(SALT_HEX);
+
+    const encrypted =
+        hexToBytes(
+            ENCRYPTED_MESSAGE_HEX
+        );
+
+
+    const keystream =
+        await makeKeystream(
+            answer,
+            salt,
+            encrypted.length
+        );
+
+
+    const decrypted =
+        new Uint8Array(
+            encrypted.length
+        );
+
+
+    for (
+        let i = 0;
+        i < encrypted.length;
+        i++
+    ) {
+
+        decrypted[i] =
+            encrypted[i]
+            ^ keystream[i];
+    }
+
+
+    return new TextDecoder(
+        "utf-8"
+    ).decode(decrypted);
+}
+
+
+async function checkAnswer() {
+
+    const answer =
+        input.value;
+
+
+    /*
+        Empty input is simply treated as incorrect.
+    */
+
+    const enteredHash =
+        await sha256Text(answer);
+
+
+    if (
+        enteredHash !== ANSWER_HASH
+    ) {
+
+        status.textContent =
+            WRONG_TEXT;
+
+        status.style.color =
+            "red";
+
+        message.textContent =
+            "";
+
+        return;
+    }
+
+
+    const revealedMessage =
+        await decryptMessage(answer);
+
+
+    status.textContent =
+        CORRECT_TEXT;
+
+    status.style.color =
+        "green";
+
+    message.textContent =
+        revealedMessage;
+}
+
+
+input.focus();
+
+</script>
+
+</body>
+</html>
