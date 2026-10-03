@@ -146,13 +146,13 @@ button:active {
 <script>
 
 const ANSWER_HASH =
-    "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
+    "ec98c429fddc1dd27b4635801d3971d4daa31059d487d4e72ab756b2cdb80edc";
 
 const SALT_HEX =
-    "087f631438a9048045e79fed07ae263e";
+    "f993e6302909a03228736bca44da8785";
 
 const ENCRYPTED_MESSAGE_HEX =
-    "2c40e9e8720a66a557a654ae84d99e0a0de1a1b4205afca37344f5309263ce4063acdbd8b0de1b4f11843796d6436d06e55de8895ad0d714f6a53fcfbd1cc34e4ac77f1e871b4d";
+    "1f47cd5631b706afc61bfec67c31ca5ed0d138fd34f747d27980df1da759e847069383d325d807ed903f42ad10e350d0ad71e70d98fa69185e2ae1";
 
 
 const BUTTON_TEXT = "\u10e8\u10d4\u10d0\u10db\u10dd\u10ec\u10db\u10d4 \u10de\u10d0\u10e1\u10e3\u10ee\u10d8";
@@ -183,6 +183,12 @@ button.textContent = BUTTON_TEXT;
     in the field, and limit input to six digits.
 */
 
+input.addEventListener("beforeinput", event => {
+    if (event.data !== null && /[^0-9]/.test(event.data)) {
+        event.preventDefault();
+    }
+});
+
 input.addEventListener("input", () => {
 
     input.value = input.value
@@ -197,6 +203,12 @@ input.addEventListener("input", () => {
 */
 
 input.addEventListener("keydown", event => {
+
+    if (!event.ctrlKey && !event.metaKey && !event.altKey
+        && event.key.length === 1 && /[^0-9]/.test(event.key)) {
+        event.preventDefault();
+        return;
+    }
 
     if (event.key === "Enter") {
         checkAnswer();

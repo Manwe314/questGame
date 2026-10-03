@@ -279,6 +279,12 @@ button.textContent = BUTTON_TEXT;
     in the field, and limit input to six digits.
 */
 
+input.addEventListener("beforeinput", event => {{
+    if (event.data !== null && /[^0-9]/.test(event.data)) {{
+        event.preventDefault();
+    }}
+}});
+
 input.addEventListener("input", () => {{
 
     input.value = input.value
@@ -293,6 +299,12 @@ input.addEventListener("input", () => {{
 */
 
 input.addEventListener("keydown", event => {{
+
+    if (!event.ctrlKey && !event.metaKey && !event.altKey
+        && event.key.length === 1 && /[^0-9]/.test(event.key)) {{
+        event.preventDefault();
+        return;
+    }}
 
     if (event.key === "Enter") {{
         checkAnswer();
